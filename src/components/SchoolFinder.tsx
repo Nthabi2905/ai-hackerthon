@@ -2,14 +2,26 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Search, MapPin, School, Users, Sparkles } from "lucide-react";
+import { Search, MapPin, School, Users, Sparkles, Brain } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+
+interface School {
+  id?: number;
+  name: string;
+  location: string;
+  learners: number;
+  infrastructure: string;
+  lastOutreach: string;
+  score: number;
+  needsAnalysis?: string;
+}
 
 const SchoolFinder = () => {
   const [province, setProvince] = useState("");
   const [district, setDistrict] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [schools, setSchools] = useState<any[]>([]);
+  const [schools, setSchools] = useState<School[]>([]);
   const { toast } = useToast();
 
   const handleSearch = async () => {
@@ -24,47 +36,46 @@ const SchoolFinder = () => {
 
     setIsLoading(true);
     
-    // Simulate AI processing
-    setTimeout(() => {
-      // Mock data for demonstration
-      const mockSchools = [
-        {
-          id: 1,
-          name: "Thembisa Secondary School",
-          location: `${district}, ${province}`,
-          learners: 850,
-          infrastructure: "Limited STEM facilities",
-          lastOutreach: "Never",
-          score: 95,
-        },
-        {
-          id: 2,
-          name: "Sunrise Primary School",
-          location: `${district}, ${province}`,
-          learners: 420,
-          infrastructure: "No science lab",
-          lastOutreach: "2+ years ago",
-          score: 92,
-        },
-        {
-          id: 3,
-          name: "Valley High School",
-          location: `${district}, ${province}`,
-          learners: 650,
-          infrastructure: "Basic facilities only",
-          lastOutreach: "Never",
-          score: 88,
-        },
-      ];
+    try {
+      console.log("Requesting AI recommendations for:", { province, district });
+      
+      const { data, error } = await supabase.functions.invoke('ai-school-recommendations', {
+        body: { province, district }
+      });
 
-      setSchools(mockSchools);
-      setIsLoading(false);
+      if (error) {
+        console.error("Edge function error:", error);
+        throw error;
+      }
+
+      console.log("AI recommendations received:", data);
+
+      if (data?.schools && Array.isArray(data.schools)) {
+        const schoolsWithIds = data.schools.map((school: School, index: number) => ({
+          ...school,
+          id: index + 1
+        }));
+        
+        setSchools(schoolsWithIds);
+        
+        toast({
+          title: "AI recommendations ready!",
+          description: `Discovered ${schoolsWithIds.length} schools that need STEM outreach`,
+        });
+      } else {
+        throw new Error("Invalid response format from AI");
+      }
+    } catch (error: any) {
+      console.error("Error getting recommendations:", error);
       
       toast({
-        title: "Schools found!",
-        description: `Discovered ${mockSchools.length} recommended schools in your area`,
+        title: "Search failed",
+        description: error.message || "Failed to get AI recommendations. Please try again.",
+        variant: "destructive",
       });
-    }, 2000);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -72,7 +83,7 @@ const SchoolFinder = () => {
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-12">
           <div className="inline-flex items-center gap-2 bg-accent/10 px-4 py-2 rounded-full mb-4">
-            <Sparkles className="w-4 h-4 text-accent" />
+            <Brain className="w-4 h-4 text-accent" />
             <span className="text-sm font-medium text-accent">AI-Powered Discovery</span>
           </div>
           <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-4">
@@ -140,9 +151,12 @@ const SchoolFinder = () => {
         {/* Results */}
         {schools.length > 0 && (
           <div className="space-y-6">
-            <h3 className="text-2xl font-bold text-foreground">
-              Recommended Schools ({schools.length})
-            </h3>
+            <div className="flex items-center gap-2 mb-4">
+              <Brain className="w-6 h-6 text-accent" />
+              <h3 className="text-2xl font-bold text-foreground">
+                AI-Recommended Schools ({schools.length})
+              </h3>
+            </div>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {schools.map((school) => (
                 <Card 
@@ -153,7 +167,7 @@ const SchoolFinder = () => {
                     <div className="flex items-start justify-between mb-2">
                       <School className="w-8 h-8 text-accent" />
                       <div className="bg-accent/10 text-accent px-2 py-1 rounded text-xs font-semibold">
-                        Match: {school.score}%
+                        Score: {school.score}
                       </div>
                     </div>
                     <CardTitle className="text-lg">{school.name}</CardTitle>
@@ -162,7 +176,7 @@ const SchoolFinder = () => {
                       {school.location}
                     </CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-2">
+                  <CardContent className="space-y-3">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Users className="w-4 h-4" />
                       <span>{school.learners} learners</span>
@@ -175,6 +189,17 @@ const SchoolFinder = () => {
                       <span className="font-medium text-foreground">Last Outreach:</span>
                       <p className="text-muted-foreground">{school.lastOutreach}</p>
                     </div>
+                    {school.needsAnalysis && (
+                      <div className="text-sm bg-accent/5 p-3 rounded border border-accent/20">
+                        <span className="font-medium text-accent flex items-center gap-1 mb-1">
+                          <Sparkles className="w-3 h-3" />
+                          Why this school?
+                        </span>
+                        <p className="text-muted-foreground text-xs leading-relaxed">
+                          {school.needsAnalysis}
+                        </p>
+                      </div>
+                    )}
                     <Button 
                       variant="outline" 
                       className="w-full mt-4 border-accent/30 text-accent hover:bg-accent/10"

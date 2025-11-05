@@ -14,7 +14,87 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      schools: {
+        Row: {
+          circuit: string | null
+          created_at: string
+          district: string | null
+          educators_2024: number | null
+          id: string
+          institution_name: string
+          latitude: number | null
+          learners_2024: number | null
+          longitude: number | null
+          nat_emis: string
+          no_fee_school: string | null
+          phase_ped: string | null
+          postal_address: string | null
+          province: string
+          quintile: string | null
+          sector: string | null
+          status: string | null
+          street_address: string | null
+          suburb: string | null
+          telephone: string | null
+          town_city: string | null
+          township_village: string | null
+          type_doe: string | null
+          urban_rural: string | null
+        }
+        Insert: {
+          circuit?: string | null
+          created_at?: string
+          district?: string | null
+          educators_2024?: number | null
+          id?: string
+          institution_name: string
+          latitude?: number | null
+          learners_2024?: number | null
+          longitude?: number | null
+          nat_emis: string
+          no_fee_school?: string | null
+          phase_ped?: string | null
+          postal_address?: string | null
+          province: string
+          quintile?: string | null
+          sector?: string | null
+          status?: string | null
+          street_address?: string | null
+          suburb?: string | null
+          telephone?: string | null
+          town_city?: string | null
+          township_village?: string | null
+          type_doe?: string | null
+          urban_rural?: string | null
+        }
+        Update: {
+          circuit?: string | null
+          created_at?: string
+          district?: string | null
+          educators_2024?: number | null
+          id?: string
+          institution_name?: string
+          latitude?: number | null
+          learners_2024?: number | null
+          longitude?: number | null
+          nat_emis?: string
+          no_fee_school?: string | null
+          phase_ped?: string | null
+          postal_address?: string | null
+          province?: string
+          quintile?: string | null
+          sector?: string | null
+          status?: string | null
+          street_address?: string | null
+          suburb?: string | null
+          telephone?: string | null
+          town_city?: string | null
+          township_village?: string | null
+          type_doe?: string | null
+          urban_rural?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

@@ -249,6 +249,9 @@ export const OutreachCampaignWizard = () => {
 
   const handleGenerateLetters = async () => {
     setLoading(true);
+    let successCount = 0;
+    let failCount = 0;
+
     try {
       // Update campaign with visit details
       const { error: updateError } = await supabase
@@ -274,6 +277,51 @@ export const OutreachCampaignWizard = () => {
       // Initialize progress
       setLetterProgress({ current: 0, total: schoolRecs.length });
 
+      // Helper function to retry with exponential backoff
+      const generateLetterWithRetry = async (rec: any, maxRetries = 3) => {
+        for (let attempt = 0; attempt < maxRetries; attempt++) {
+          try {
+            const { data: letterData, error: letterError } = await supabase.functions.invoke(
+              "generate-outreach-letter",
+              {
+                body: {
+                  campaignId,
+                  schoolData: rec.generated_data,
+                  visitDetails,
+                },
+              }
+            );
+
+            if (letterError) {
+              // Check if it's a rate limit error
+              if (letterError.message?.includes("429") || letterError.message?.includes("Rate limit")) {
+                if (attempt < maxRetries - 1) {
+                  // Exponential backoff: 3s, 6s, 12s
+                  const delay = 3000 * Math.pow(2, attempt);
+                  console.log(`Rate limited, retrying in ${delay}ms...`);
+                  await new Promise(resolve => setTimeout(resolve, delay));
+                  continue;
+                }
+              }
+              throw letterError;
+            }
+
+            // Success - update recommendation
+            await supabase
+              .from("school_recommendations")
+              .update({ letter_sent_at: new Date().toISOString() })
+              .eq("id", rec.id);
+            
+            return true;
+          } catch (err) {
+            if (attempt === maxRetries - 1) {
+              throw err;
+            }
+          }
+        }
+        return false;
+      };
+
       // Generate letters for each school with rate limiting
       for (let i = 0; i < schoolRecs.length; i++) {
         const rec = schoolRecs[i];
@@ -281,36 +329,33 @@ export const OutreachCampaignWizard = () => {
         // Update progress
         setLetterProgress({ current: i + 1, total: schoolRecs.length });
         
-        // Add delay between requests to avoid rate limiting (except for first request)
+        // Add delay between requests (increased to 3 seconds)
         if (i > 0) {
-          await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second delay
+          await new Promise(resolve => setTimeout(resolve, 3000));
         }
 
-        const { data: letterData, error: letterError } = await supabase.functions.invoke(
-          "generate-outreach-letter",
-          {
-            body: {
-              campaignId,
-              schoolData: rec.generated_data,
-              visitDetails,
-            },
-          }
-        );
-
-        if (letterError) {
-          console.error("Letter generation error:", letterError);
-          continue;
+        try {
+          await generateLetterWithRetry(rec);
+          successCount++;
+          toast.success(`Letter ${i + 1}/${schoolRecs.length} generated`, { duration: 1000 });
+        } catch (error: any) {
+          failCount++;
+          const schoolName = typeof rec.generated_data === 'object' && rec.generated_data !== null && 'name' in rec.generated_data 
+            ? (rec.generated_data as any).name 
+            : 'Unknown School';
+          console.error(`Failed to generate letter for ${schoolName}:`, error);
+          toast.error(`Failed for ${schoolName}: ${error.message || 'Unknown error'}`, { duration: 2000 });
         }
-
-        // Update recommendation with letter sent timestamp
-        await supabase
-          .from("school_recommendations")
-          .update({ letter_sent_at: new Date().toISOString() })
-          .eq("id", rec.id);
       }
 
       setStep(4);
-      toast.success("Letters generated and sent!");
+      
+      if (successCount > 0) {
+        toast.success(`Successfully generated ${successCount} letter${successCount !== 1 ? 's' : ''}!`);
+      }
+      if (failCount > 0) {
+        toast.warning(`${failCount} letter${failCount !== 1 ? 's' : ''} failed to generate`);
+      }
     } catch (error: any) {
       console.error("[DEBUG] Error generating letters:", error);
       toast.error(getPublicErrorMessage(error));

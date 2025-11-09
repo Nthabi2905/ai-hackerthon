@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { Loader2, AlertCircle } from "lucide-react";
 import { validatePassword } from "@/utils/passwordValidation";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -17,6 +18,7 @@ const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
+  const [role, setRole] = useState<"organization" | "admin" | "teacher" | "learner">("learner");
   const [passwordErrors, setPasswordErrors] = useState<string[]>([]);
 
   useEffect(() => {
@@ -82,6 +84,7 @@ const Auth = () => {
           emailRedirectTo: `${window.location.origin}/`,
           data: {
             full_name: fullName,
+            role: role,
           },
         },
       });
@@ -159,6 +162,20 @@ const Auth = () => {
                     required
                     maxLength={100}
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="signup-role">I am a...</Label>
+                  <Select value={role} onValueChange={(value: any) => setRole(value)}>
+                    <SelectTrigger id="signup-role">
+                      <SelectValue placeholder="Select your role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="organization">Organization (Create outreach campaigns)</SelectItem>
+                      <SelectItem value="admin">Admin (Manage outreach campaigns)</SelectItem>
+                      <SelectItem value="teacher">Teacher (Submit outreach requests)</SelectItem>
+                      <SelectItem value="learner">Learner (Request mentorship)</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="signup-email">Email</Label>

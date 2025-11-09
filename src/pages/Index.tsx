@@ -17,6 +17,7 @@ const Index = () => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -36,32 +37,48 @@ const Index = () => {
   }, []);
 
   useEffect(() => {
-    const checkAdminStatus = async () => {
+    const checkUserRole = async () => {
       if (!user) {
         setIsAdmin(false);
+        setUserRole(null);
         setIsLoading(false);
         return;
       }
 
       try {
-        // Use RPC function instead of direct table query for better security
-        const { data, error } = await supabase.rpc('is_current_user_admin');
+        // Check if user is admin or organization
+        const { data: adminData, error: adminError } = await supabase.rpc('is_current_user_admin');
 
-        if (error) {
-          console.error('Error checking admin status:', error);
+        if (adminError) {
+          console.error('Error checking admin status:', adminError);
           setIsAdmin(false);
         } else {
-          setIsAdmin(data === true);
+          setIsAdmin(adminData === true);
+        }
+
+        // Get user's role
+        const { data: roleData, error: roleError } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .single();
+
+        if (roleError) {
+          console.error('Error fetching user role:', roleError);
+          setUserRole(null);
+        } else {
+          setUserRole(roleData?.role || null);
         }
       } catch (error) {
-        console.error('Error checking admin status:', error);
+        console.error('Error checking user permissions:', error);
         setIsAdmin(false);
+        setUserRole(null);
       } finally {
         setIsLoading(false);
       }
     };
 
-    checkAdminStatus();
+    checkUserRole();
   }, [user]);
 
   const handleSignOut = async () => {
@@ -95,9 +112,9 @@ const Index = () => {
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <h1 className="text-xl font-semibold">School Outreach Platform</h1>
-            {isAdmin && (
-              <span className="text-xs bg-primary text-primary-foreground px-2 py-1 rounded">
-                Admin
+            {userRole && (
+              <span className="text-xs bg-primary text-primary-foreground px-2 py-1 rounded capitalize">
+                {userRole}
               </span>
             )}
           </div>
@@ -114,29 +131,62 @@ const Index = () => {
       <Hero />
 
       <section className="container mx-auto px-4 py-12">
-        {isAdmin && !isLoading && (
-          <Tabs defaultValue="campaign" className="mb-8">
-            <TabsList className="grid w-full max-w-md mx-auto grid-cols-3">
-              <TabsTrigger value="campaign">Outreach Campaign</TabsTrigger>
-              <TabsTrigger value="search">Search Schools</TabsTrigger>
-              <TabsTrigger value="import">Import Data</TabsTrigger>
-            </TabsList>
+        {!isLoading && (
+          <>
+            {/* Organizations and Admins - Full access to campaigns */}
+            {isAdmin && (
+              <Tabs defaultValue="campaign" className="mb-8">
+                <TabsList className="grid w-full max-w-md mx-auto grid-cols-3">
+                  <TabsTrigger value="campaign">Outreach Campaign</TabsTrigger>
+                  <TabsTrigger value="search">Search Schools</TabsTrigger>
+                  <TabsTrigger value="import">Import Data</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="campaign" className="mt-6">
+                  <OutreachCampaignWizard />
+                </TabsContent>
+                
+                <TabsContent value="search" className="mt-6">
+                  <SchoolFinder />
+                </TabsContent>
+                
+                <TabsContent value="import" className="mt-6">
+                  <SchoolImporter />
+                </TabsContent>
+              </Tabs>
+            )}
             
-            <TabsContent value="campaign" className="mt-6">
-              <OutreachCampaignWizard />
-            </TabsContent>
+            {/* Teachers - Request outreach form (placeholder) */}
+            {userRole === 'teacher' && (
+              <div className="max-w-2xl mx-auto">
+                <div className="bg-card border rounded-lg p-8 text-center">
+                  <h2 className="text-2xl font-bold mb-4">Teacher Portal</h2>
+                  <p className="text-muted-foreground mb-6">
+                    Submit outreach requests to connect with organizations
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Feature coming soon - Submit requests for STEM outreach visits
+                  </p>
+                </div>
+              </div>
+            )}
             
-            <TabsContent value="search" className="mt-6">
-              <SchoolFinder />
-            </TabsContent>
-            
-            <TabsContent value="import" className="mt-6">
-              <SchoolImporter />
-            </TabsContent>
-          </Tabs>
+            {/* Learners - Mentorship request form (placeholder) */}
+            {userRole === 'learner' && (
+              <div className="max-w-2xl mx-auto">
+                <div className="bg-card border rounded-lg p-8 text-center">
+                  <h2 className="text-2xl font-bold mb-4">Learner Portal</h2>
+                  <p className="text-muted-foreground mb-6">
+                    Request mentorship and guidance from STEM professionals
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Feature coming soon - Connect with mentors and get advice
+                  </p>
+                </div>
+              </div>
+            )}
+          </>
         )}
-        
-        {!isAdmin && <SchoolFinder />}
       </section>
     </div>
   );

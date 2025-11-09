@@ -148,7 +148,7 @@ const SchoolFinder = () => {
                         </CardDescription>
                       </div>
                       <div className="bg-primary/10 text-primary px-3 py-1 rounded-full text-sm font-medium">
-                        Q{school.quintile}
+                        Quintile {school.quintile}
                       </div>
                     </div>
                   </CardHeader>

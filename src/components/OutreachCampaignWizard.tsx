@@ -430,7 +430,7 @@ export const OutreachCampaignWizard = () => {
                         </div>
                         <div>
                           <p className="text-sm font-medium">Quintile</p>
-                          <p className="text-sm text-muted-foreground">Q{school.quintile}</p>
+                          <p className="text-sm text-muted-foreground">Quintile {school.quintile}</p>
                         </div>
                         <div>
                           <p className="text-sm font-medium">Area Type</p>

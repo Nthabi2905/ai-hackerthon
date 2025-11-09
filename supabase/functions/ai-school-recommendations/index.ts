@@ -58,9 +58,9 @@ serve(async (req) => {
     const validated = inputSchema.parse(body);
     const { province, district, schoolType } = validated;
 
-    const OPENAI_API_KEY = Deno.env.get("Open_AI");
-    if (!OPENAI_API_KEY) {
-      throw new Error("OpenAI API key is not configured");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) {
+      throw new Error("Lovable AI API key is not configured");
     }
 
     // System prompt for AI school recommendation
@@ -99,34 +99,40 @@ Return EXACTLY 10 school recommendations as a JSON array with this structure:
 Use real South African township and suburb names from this region. Focus on underserved communities. 
 Include realistic enrollment numbers (learners), number of educators, and language of instruction for each school.`;
 
-    console.log("Calling OpenAI for school recommendations...");
+    console.log("Calling Lovable AI for school recommendations...");
     
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${OPENAI_API_KEY}`,
+        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gpt-5-mini-2025-08-07",
+        model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt }
         ],
-        max_completion_tokens: 2000,
+        max_tokens: 2000,
       }),
     });
 
     if (!response.ok) {
       if (response.status === 429) {
         return new Response(
-          JSON.stringify({ error: "Rate limit exceeded. Please try again in a moment." }),
+          JSON.stringify({ error: "Rate limit exceeded. Please try again later or add credits to your workspace." }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
+      if (response.status === 402) {
+        return new Response(
+          JSON.stringify({ error: "Payment required. Please add credits to your Lovable AI workspace." }),
+          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
       const errorText = await response.text();
-      console.error("OpenAI API error:", response.status, errorText);
-      throw new Error("OpenAI API request failed");
+      console.error("Lovable AI API error:", response.status, errorText);
+      throw new Error("AI API request failed");
     }
 
     const data = await response.json();

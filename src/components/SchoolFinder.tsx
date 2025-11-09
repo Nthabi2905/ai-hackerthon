@@ -132,9 +132,6 @@ const SchoolFinder = () => {
                   value={district}
                   onChange={(e) => setDistrict(e.target.value)}
                 />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Tip: District names are case-insensitive
-                </p>
               </div>
               <div>
                 <label className="text-sm font-medium text-foreground mb-2 block">

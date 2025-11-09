@@ -110,7 +110,7 @@ Format the letter professionally with proper salutations, body paragraphs, and c
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt }
         ],
-        max_tokens: 1500,
+        max_completion_tokens: 1500,
       }),
     });
 

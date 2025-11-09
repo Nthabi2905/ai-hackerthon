@@ -36,9 +36,9 @@ serve(async (req) => {
       );
     }
 
-    const OPENAI_API_KEY = Deno.env.get("Open_AI");
-    if (!OPENAI_API_KEY) {
-      throw new Error("OpenAI API key is not configured");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) {
+      throw new Error("Lovable API key is not configured");
     }
 
     // Get organization details
@@ -96,21 +96,21 @@ Additional Information: ${visitDetails.additionalInfo || 'N/A'}
 
 Format the letter professionally with proper salutations, body paragraphs, and closing.`;
 
-    console.log("Calling OpenAI for letter generation...");
+    console.log("Calling Lovable AI for letter generation...");
     
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${OPENAI_API_KEY}`,
+        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gpt-5-mini-2025-08-07",
+        model: "openai/gpt-5-mini",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt }
         ],
-        max_completion_tokens: 1500,
+        max_tokens: 1500,
       }),
     });
 
@@ -122,8 +122,8 @@ Format the letter professionally with proper salutations, body paragraphs, and c
         );
       }
       const errorText = await response.text();
-      console.error("OpenAI API error:", response.status, errorText);
-      throw new Error("OpenAI API request failed");
+      console.error("Lovable AI API error:", response.status, errorText);
+      throw new Error("AI API request failed");
     }
 
     const data = await response.json();

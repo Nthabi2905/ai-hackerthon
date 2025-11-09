@@ -134,7 +134,7 @@ const Index = () => {
         {!isLoading && (
           <>
             {/* Organizations and Admins - Full access to campaigns */}
-            {isAdmin && (
+            {(isAdmin || userRole === 'organization' || userRole === 'admin') && (
               <Tabs defaultValue="campaign" className="mb-8">
                 <TabsList className="grid w-full max-w-md mx-auto grid-cols-3">
                   <TabsTrigger value="campaign">Outreach Campaign</TabsTrigger>
@@ -157,31 +157,44 @@ const Index = () => {
             )}
             
             {/* Teachers - Request outreach form (placeholder) */}
-            {userRole === 'teacher' && (
+            {userRole === 'teacher' && !isAdmin && (
               <div className="max-w-2xl mx-auto">
                 <div className="bg-card border rounded-lg p-8 text-center">
                   <h2 className="text-2xl font-bold mb-4">Teacher Portal</h2>
                   <p className="text-muted-foreground mb-6">
                     Submit outreach requests to connect with organizations
                   </p>
-                  <p className="text-sm text-muted-foreground">
-                    Feature coming soon - Submit requests for STEM outreach visits
-                  </p>
+                  <Button size="lg" disabled>
+                    Submit Outreach Request (Coming Soon)
+                  </Button>
                 </div>
               </div>
             )}
             
             {/* Learners - Mentorship request form (placeholder) */}
-            {userRole === 'learner' && (
+            {userRole === 'learner' && !isAdmin && (
               <div className="max-w-2xl mx-auto">
                 <div className="bg-card border rounded-lg p-8 text-center">
                   <h2 className="text-2xl font-bold mb-4">Learner Portal</h2>
                   <p className="text-muted-foreground mb-6">
                     Request mentorship and guidance from STEM professionals
                   </p>
-                  <p className="text-sm text-muted-foreground">
-                    Feature coming soon - Connect with mentors and get advice
+                  <Button size="lg" disabled>
+                    Request Mentor (Coming Soon)
+                  </Button>
+                </div>
+              </div>
+            )}
+            
+            {/* Fallback for users without a role */}
+            {!userRole && !isAdmin && (
+              <div className="max-w-2xl mx-auto">
+                <div className="bg-card border rounded-lg p-8 text-center">
+                  <h2 className="text-2xl font-bold mb-4">Welcome!</h2>
+                  <p className="text-muted-foreground mb-6">
+                    Please contact an administrator to assign your role
                   </p>
+                  <SchoolFinder />
                 </div>
               </div>
             )}

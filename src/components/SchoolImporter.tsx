@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Upload } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { Upload, FileCheck } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from 'xlsx';
 import { parseSchoolRow } from "@/utils/parseSchoolData";
@@ -10,6 +11,10 @@ import { getPublicErrorMessage } from "@/utils/errorMapping";
 
 const SchoolImporter = () => {
   const [isImporting, setIsImporting] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [currentFile, setCurrentFile] = useState<string>("");
+  const [totalSchools, setTotalSchools] = useState(0);
+  const [importedSchools, setImportedSchools] = useState(0);
 
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -17,10 +22,18 @@ const SchoolImporter = () => {
     if (!files || files.length === 0) return;
 
     setIsImporting(true);
+    setProgress(0);
+    setImportedSchools(0);
+    
+    const fileArray = Array.from(files);
     let totalImported = 0;
 
     try {
-      for (const file of Array.from(files)) {
+      for (let i = 0; i < fileArray.length; i++) {
+        const file = fileArray[i];
+        setCurrentFile(file.name);
+        
+        // Parse the file
         const data = await file.arrayBuffer();
         const workbook = XLSX.read(data);
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -32,8 +45,11 @@ const SchoolImporter = () => {
 
         if (schools.length === 0) {
           toast.error(`No valid schools found in ${file.name}`);
+          setProgress(((i + 1) / fileArray.length) * 100);
           continue;
         }
+
+        setTotalSchools(schools.length);
 
         // Call the import edge function with auth header
         const { data: { session } } = await supabase.auth.getSession()
@@ -47,6 +63,9 @@ const SchoolImporter = () => {
         if (error) throw error;
 
         totalImported += schools.length;
+        setImportedSchools(totalImported);
+        setProgress(((i + 1) / fileArray.length) * 100);
+        
         toast.success(`Imported ${schools.length} schools from ${file.name}`);
       }
 
@@ -56,6 +75,10 @@ const SchoolImporter = () => {
       toast.error(getPublicErrorMessage(error));
     } finally {
       setIsImporting(false);
+      setCurrentFile("");
+      setProgress(0);
+      setTotalSchools(0);
+      setImportedSchools(0);
       if (event.target) event.target.value = '';
     }
   };
@@ -77,7 +100,7 @@ const SchoolImporter = () => {
             </p>
             <input
               type="file"
-              accept=".xlsx,.xls"
+              accept=".xlsx,.xls,.csv"
               multiple
               onChange={handleFileUpload}
               disabled={isImporting}
@@ -102,6 +125,27 @@ const SchoolImporter = () => {
               </Button>
             </label>
           </div>
+
+          {isImporting && (
+            <div className="space-y-3 p-4 bg-muted/50 rounded-lg">
+              <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-2">
+                  <FileCheck className="w-4 h-4 text-primary" />
+                  <span className="font-medium">Processing: {currentFile}</span>
+                </div>
+                <span className="text-muted-foreground">{Math.round(progress)}%</span>
+              </div>
+              
+              <Progress value={progress} className="h-2" />
+              
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>Current file: {totalSchools} schools</span>
+                <span className="font-semibold text-primary">
+                  Total imported: {importedSchools} schools
+                </span>
+              </div>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>

@@ -11,14 +11,15 @@ import { Loader2, MapPin, School, FileText, CheckCircle, Clock } from "lucide-re
 import { getPublicErrorMessage } from "@/utils/errorMapping";
 
 interface SchoolRecommendation {
+  id: string;
   name: string;
   location: string;
   learners: number;
   educators: number;
   languageOfInstruction: string;
-  infrastructure: string;
-  lastOutreach: string;
-  score: number;
+  quintile: string;
+  noFeeSchool: string;
+  urbanRural: string;
   needsAnalysis: string;
 }
 
@@ -60,15 +61,53 @@ export const OutreachCampaignWizard = () => {
 
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("ai-school-recommendations", {
-        body: { province, district, schoolType, languagePreference },
-      });
+      // Build school type filter
+      let phaseFilter = '';
+      if (schoolType === 'primary') {
+        phaseFilter = 'Primary';
+      } else if (schoolType === 'high') {
+        phaseFilter = 'Secondary';
+      } else {
+        phaseFilter = 'Combined';
+      }
 
-      if (error) throw error;
+      // Query schools from database
+      let query = supabase
+        .from('schools')
+        .select('*')
+        .ilike('province', `%${province}%`)
+        .ilike('district', `%${district}%`)
+        .not('latitude', 'is', null)
+        .not('longitude', 'is', null)
+        .limit(20);
 
-      setRecommendations(data.schools);
+      if (schoolType !== 'combined') {
+        query = query.ilike('phase_ped', `%${phaseFilter}%`);
+      }
+
+      const { data: schools, error: schoolsError } = await query;
+
+      if (schoolsError) throw schoolsError;
+
+      if (!schools || schools.length === 0) {
+        toast.error("No schools found matching your criteria");
+        setLoading(false);
+        return;
+      }
+
+      // Call AI to analyze schools and generate needs analysis
+      const { data: analysisData, error: analysisError } = await supabase.functions.invoke(
+        "analyze-school-needs",
+        {
+          body: { schools, languagePreference },
+        }
+      );
+
+      if (analysisError) throw analysisError;
+
+      setRecommendations(analysisData.analyzedSchools);
       setStep(2);
-      toast.success("Schools generated successfully!");
+      toast.success(`Found ${analysisData.analyzedSchools.length} schools with needs analysis!`);
     } catch (error: any) {
       console.error("[DEBUG] Error generating recommendations:", error);
       toast.error(getPublicErrorMessage(error));
@@ -86,17 +125,59 @@ export const OutreachCampaignWizard = () => {
   const handleGenerateMoreSchools = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("ai-school-recommendations", {
-        body: { province, district, schoolType, languagePreference },
-      });
+      // Get IDs of already shown schools to exclude them
+      const existingIds = recommendations.map(r => r.id);
 
-      if (error) throw error;
+      // Build school type filter
+      let phaseFilter = '';
+      if (schoolType === 'primary') {
+        phaseFilter = 'Primary';
+      } else if (schoolType === 'high') {
+        phaseFilter = 'Secondary';
+      } else {
+        phaseFilter = 'Combined';
+      }
+
+      // Query more schools from database
+      let query = supabase
+        .from('schools')
+        .select('*')
+        .ilike('province', `%${province}%`)
+        .ilike('district', `%${district}%`)
+        .not('id', 'in', `(${existingIds.join(',')})`)
+        .not('latitude', 'is', null)
+        .not('longitude', 'is', null)
+        .limit(10);
+
+      if (schoolType !== 'combined') {
+        query = query.ilike('phase_ped', `%${phaseFilter}%`);
+      }
+
+      const { data: schools, error: schoolsError } = await query;
+
+      if (schoolsError) throw schoolsError;
+
+      if (!schools || schools.length === 0) {
+        toast.error("No more schools found");
+        setLoading(false);
+        return;
+      }
+
+      // Call AI to analyze schools
+      const { data: analysisData, error: analysisError } = await supabase.functions.invoke(
+        "analyze-school-needs",
+        {
+          body: { schools, languagePreference },
+        }
+      );
+
+      if (analysisError) throw analysisError;
 
       // Add new schools to existing recommendations
-      setRecommendations((prev) => [...prev, ...data.schools]);
-      toast.success(`${data.schools.length} more schools generated!`);
+      setRecommendations((prev) => [...prev, ...analysisData.analyzedSchools]);
+      toast.success(`${analysisData.analyzedSchools.length} more schools loaded!`);
     } catch (error: any) {
-      console.error("[DEBUG] Error generating more schools:", error);
+      console.error("[DEBUG] Error loading more schools:", error);
       toast.error(getPublicErrorMessage(error));
     } finally {
       setLoading(false);
@@ -344,28 +425,23 @@ export const OutreachCampaignWizard = () => {
                           <p className="text-sm text-muted-foreground">{school.learners} learners</p>
                         </div>
                         <div>
-                          <p className="text-sm font-medium">Language</p>
-                          <p className="text-sm text-muted-foreground">{school.languageOfInstruction}</p>
-                        </div>
-                        <div>
                           <p className="text-sm font-medium">Educators</p>
                           <p className="text-sm text-muted-foreground">{school.educators}</p>
                         </div>
                         <div>
-                          <p className="text-sm font-medium">Last Outreach</p>
-                          <p className="text-sm text-muted-foreground">{school.lastOutreach}</p>
+                          <p className="text-sm font-medium">Quintile</p>
+                          <p className="text-sm text-muted-foreground">Q{school.quintile}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium">Area Type</p>
+                          <p className="text-sm text-muted-foreground">{school.urbanRural}</p>
                         </div>
                       </div>
 
-                      <div className="pt-2">
-                        <p className="text-sm font-medium">Needs Analysis</p>
-                        <p className="text-sm text-muted-foreground">{school.needsAnalysis}</p>
+                      <div className="pt-3 border-t mt-3">
+                        <p className="text-sm font-medium mb-1">AI Needs Analysis</p>
+                        <p className="text-sm text-muted-foreground leading-relaxed">{school.needsAnalysis}</p>
                       </div>
-                    </div>
-
-                    <div className="ml-4 text-right">
-                      <div className="text-2xl font-bold text-primary">{school.score}</div>
-                      <p className="text-xs text-muted-foreground">Priority Score</p>
                     </div>
                   </div>
                 </CardContent>

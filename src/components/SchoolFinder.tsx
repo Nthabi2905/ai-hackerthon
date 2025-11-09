@@ -40,7 +40,7 @@ const SchoolFinder = () => {
       let query = supabase
         .from('schools')
         .select('*')
-        .eq('province', province)
+        .ilike('province', province)
         .not('longitude', 'is', null)
         .not('latitude', 'is', null);
 

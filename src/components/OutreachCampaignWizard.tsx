@@ -36,6 +36,7 @@ interface VisitDetails {
 export const OutreachCampaignWizard = () => {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [letterProgress, setLetterProgress] = useState({ current: 0, total: 0 });
   const [province, setProvince] = useState("");
   const [district, setDistrict] = useState("");
   const [schoolType, setSchoolType] = useState<"primary" | "high" | "combined">("primary");
@@ -270,9 +271,15 @@ export const OutreachCampaignWizard = () => {
 
       if (!schoolRecs || schoolRecs.length === 0) throw new Error("No schools found");
 
+      // Initialize progress
+      setLetterProgress({ current: 0, total: schoolRecs.length });
+
       // Generate letters for each school with rate limiting
       for (let i = 0; i < schoolRecs.length; i++) {
         const rec = schoolRecs[i];
+        
+        // Update progress
+        setLetterProgress({ current: i + 1, total: schoolRecs.length });
         
         // Add delay between requests to avoid rate limiting (except for first request)
         if (i > 0) {
@@ -309,6 +316,7 @@ export const OutreachCampaignWizard = () => {
       toast.error(getPublicErrorMessage(error));
     } finally {
       setLoading(false);
+      setLetterProgress({ current: 0, total: 0 });
     }
   };
 
@@ -589,10 +597,12 @@ export const OutreachCampaignWizard = () => {
               </Button>
               <Button onClick={handleGenerateLetters} disabled={loading} className="flex-1">
                 {loading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Generating Letters...
-                  </>
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>
+                      Generating letter {letterProgress.current} of {letterProgress.total}...
+                    </span>
+                  </div>
                 ) : (
                   "Generate & Send Letters"
                 )}

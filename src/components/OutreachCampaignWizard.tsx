@@ -270,8 +270,15 @@ export const OutreachCampaignWizard = () => {
 
       if (!schoolRecs || schoolRecs.length === 0) throw new Error("No schools found");
 
-      // Generate letters for each school
-      for (const rec of schoolRecs) {
+      // Generate letters for each school with rate limiting
+      for (let i = 0; i < schoolRecs.length; i++) {
+        const rec = schoolRecs[i];
+        
+        // Add delay between requests to avoid rate limiting (except for first request)
+        if (i > 0) {
+          await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second delay
+        }
+
         const { data: letterData, error: letterError } = await supabase.functions.invoke(
           "generate-outreach-letter",
           {

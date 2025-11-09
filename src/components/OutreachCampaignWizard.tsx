@@ -164,11 +164,17 @@ export const OutreachCampaignWizard = () => {
           .eq("id", campaignId);
       }
 
+      // Get the current session to pass auth token
+      const { data: { session } } = await supabase.auth.getSession();
+      
       const { data, error } = await supabase.functions.invoke("send-campaign-letters", {
         body: { 
           campaignId,
           fromEmail: "STEM Outreach <onboarding@resend.dev>",
           fromName: "STEM Outreach Team"
+        },
+        headers: {
+          Authorization: `Bearer ${session?.access_token}`,
         },
       });
 
